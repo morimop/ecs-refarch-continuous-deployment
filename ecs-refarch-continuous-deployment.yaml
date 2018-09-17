@@ -22,25 +22,25 @@ Parameters:
       https://docs.aws.amazon.com/AmazonECS/latest/developerguide/launch_types.html
       to learn more about launch types.
 
-  GitHubUser:
-    Type: String
-    Description: Your username on GitHub.
+  # GitHubUser:
+  #   Type: String
+  #   Description: Your username on GitHub.
 
-  GitHubRepo:
-    Type: String
-    Default: ecs-demo-php-simple-app
-    Description: The repo name of the sample service.
+  # GitHubRepo:
+  #   Type: String
+  #   Default: ecs-demo-php-simple-app
+  #   Description: The repo name of the sample service.
 
-  GitHubBranch:
-    Type: String
-    Default: master
-    Description: The branch of the repo to continuously deploy.
+  # GitHubBranch:
+  #   Type: String
+  #   Default: master
+  #   Description: The branch of the repo to continuously deploy.
 
-  GitHubToken:
-    Type: String
-    NoEcho: true
-    Description: >
-      Token for the user specified above. (https://github.com/settings/tokens)
+  # GitHubToken:
+  #   Type: String
+  #   NoEcho: true
+  #   Description: >
+  #     Token for the user specified above. (https://github.com/settings/tokens)
 
   TemplateBucket:
     Type: String
@@ -48,6 +48,20 @@ Parameters:
     Description: >
       The S3 bucket from which to fetch the templates used by this stack.
 
+  ApplicationSourceZipName:
+    Type: String
+    Default: src.zip
+    Description: >
+      The ZIP file name, Application Source.
+
+  # ContainerPort:
+  #   Type: Number
+  #   Default: 3000
+
+  CertificateArn:
+    Type: String
+    Description: >
+      ACM Certification ARN for HTTPS,ALB
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -67,17 +81,29 @@ Metadata:
           default: Cluster Configuration
         Parameters:
           - LaunchType
+      # - Label:
+      #     default: GitHub Configuration
+      #   Parameters:
+      #     - GitHubRepo
+      #     - GitHubBranch
+      #     - GitHubUser
+      #     - GitHubToken
       - Label:
-          default: GitHub Configuration
+          default: Source Configuration
         Parameters:
-          - GitHubRepo
-          - GitHubBranch
-          - GitHubUser
-          - GitHubToken
+          - ApplicationSourceZipName
       - Label:
           default: Stack Configuration
         Parameters:
           - TemplateBucket
+      # - Label:
+      #     default: Container Configuration
+      #   Parameters:
+      #     - ContainerPort
+      - Label:
+          default: ALB/HTTPS Configuration
+        Parameters:
+          - CertificateArn
 
 
 Resources:
@@ -98,10 +124,11 @@ Resources:
       Parameters:
         Cluster: !GetAtt Cluster.Outputs.ClusterName
         Service: !GetAtt Service.Outputs.Service
-        GitHubUser: !Ref GitHubUser
-        GitHubToken: !Ref GitHubToken
-        GitHubRepo: !Ref GitHubRepo
-        GitHubBranch: !Ref GitHubBranch
+        # GitHubUser: !Ref GitHubUser
+        # GitHubToken: !Ref GitHubToken
+        # GitHubRepo: !Ref GitHubRepo
+        # GitHubBranch: !Ref GitHubBranch
+        ApplicationSourceZipName: !Ref ApplicationSourceZipName
 
   LoadBalancer:
     Type: AWS::CloudFormation::Stack
@@ -111,6 +138,8 @@ Resources:
         LaunchType: !Ref LaunchType
         Subnets: !GetAtt VPC.Outputs.Subnets
         VpcId: !GetAtt VPC.Outputs.VpcId
+        CertificateArn: !Ref CertificateArn
+
 
   VPC:
     Type: AWS::CloudFormation::Stack
@@ -142,3 +171,7 @@ Outputs:
   PipelineUrl:
     Description: The continuous deployment pipeline in the AWS Management Console.
     Value: !GetAtt DeploymentPipeline.Outputs.PipelineUrl
+
+  S3BucketForPipeline:
+    Description: The continuous deployment pipeline source S3 Bucket.
+    Value: !GetAtt DeploymentPipeline.Outputs.BucketForPipeline

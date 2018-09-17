@@ -16,6 +16,8 @@ Parameters:
   VpcId:
     Type: String
 
+  CertificateArn:
+    Type: String
 
 Conditions:
   EC2: !Equals [ !Ref LaunchType, "EC2" ]
@@ -31,6 +33,10 @@ Resources:
           IpProtocol: "TCP"
           FromPort: 80
           ToPort: 80
+        - CidrIp: "0.0.0.0/0"
+          IpProtocol: "TCP"
+          FromPort: 443
+          ToPort: 443
       VpcId: !Ref VpcId
 
   LoadBalancer:
@@ -44,10 +50,12 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref LoadBalancer
-      Port: 80
-      Protocol: HTTP
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
       DefaultActions:
-        - Type: forward
+        - Type: forward # Valid Values: forward | authenticate-oidc | authenticate-cognito | redirect | fixed-response
           TargetGroupArn: !Ref TargetGroup
 
   TargetGroup:
@@ -81,6 +89,20 @@ Resources:
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
+
+  RoleForECS:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: ecs.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole'
 
 
 Outputs:

@@ -1,3 +1,47 @@
+# 改訂版
+- Githubではなく、S3にソースコードを置く（Gitリポジトリに依存しない。Gitlabでも使えるように）
+
+## 事前準備
+- ALBはHTTPSにできるように事前にACMで証明書取得が必要
+  - 無料でやるなら以下の手順
+    1. freenomでドメインを取得
+    2. Dozensで取得したドメインを登録
+    3. freenomの当該ドメインのNameserverをDozensに指定
+    4. ACMで証明書をリクエスト、DNS認証を指定
+    5. ACMが要求するCNAMEレコードをDozensに登録
+- 各種yamlをS3に配置（CloudFormationを起動するためにS3に置く）
+  - `ecs-refarch-continuous-deployments.yaml`および`templates`フォルダ配下
+- ソースコードZip内の構成は直下から`docker build -f ./docker/Dockerfile .`でビルドできる前提
+- コンテナポートは80を前提
+- LoadBalancerのヘルスチェックパスは`/`固定
+
+## 事後作業（自動化ToDo）
+- 作成されたALBのFQDNに読み替えるように、DNS(Route53なりDozensなり)へCNAMEレコードを設定
+- CFnで作成された`S3BucketForPipeline`にZIPで固めたソースコードをアップロード
+- Pipelineを手動（コンソール or CLI）なり自動なりで実行
+  - S3にソースコードZipのPutをトリガにLambdaでpipelineを実行
+    - 公式ドキュメントでは「CloudTrailでS3ログ有効化 -> CloudWatch Eventsで対象ZipファイルのPutをフィルタ、ルール作成」
+
+## Fork元からの修正点
+- service.yamlで以下のエラーとなる
+  - `Unable to assume the service linked role. Please verify that the ECS service linked role exists.`
+  - 公式ドキュメントにそれらしい記述：https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/service_IAM_role.html
+  - 1度もECSを使ったことがないアカウントはサービスリンクロールが無いため？と思われる。
+  - https://aws.amazon.com/jp/premiumsupport/knowledge-center/assume-role-validate-listeners/
+  - これによれば、Roleを事前に作っておく必要がある
+    - load-balancerと同時に作る
+- sampleのservice.yamlのbusyboxやらmountやらentrypointが邪魔なので素のnginxに差し替え
+- 割当CPUとメモリ変更
+- Pipeline/BuildのArtifact用S3をSourceと共用したせいか、IAMのResourceにバケット自体の指定も必要になった？ため追加
+  - Resourceを2つ書いてうまくいかなかったので並べて書いた
+
+## メモと参考
+- CodeBuildが出力する`images.json`がTaskDefinition(ContainerDefinition?)になる
+- スタック作成直後のpipelineは失敗になる。SourceのZipがないから。(たぶん)
+- 以下はFork元のREADME
+
+---
+
 # ECS Reference Architecture: Continuous Deployment
 
 The ECS Continuous Deployment reference architecture demonstrates how to achieve

@@ -3,17 +3,20 @@ AWSTemplateFormatVersion: 2010-09-09
 
 
 Parameters:
-  GitHubRepo:
-    Type: String
+  # GitHubRepo:
+  #   Type: String
 
-  GitHubBranch:
-    Type: String
+  # GitHubBranch:
+  #   Type: String
 
-  GitHubToken:
-    Type: String
-    NoEcho: true
+  # GitHubToken:
+  #   Type: String
+  #   NoEcho: true
 
-  GitHubUser:
+  # GitHubUser:
+  #   Type: String
+
+  ApplicationSourceZipName:
     Type: String
 
   Cluster:
@@ -85,6 +88,14 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Resource:
+                  - !Sub arn:aws:s3:::${ArtifactBucket}
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource:
                   - !Sub arn:aws:s3:::${ArtifactBucket}/*
                 Effect: Allow
                 Action:
@@ -108,6 +119,10 @@ Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
+    Properties:
+      # for CodePipeline, Source S3 need Versioning. see: https://www.m3tech.blog/entry/elixir-fargate-impl-2
+      VersioningConfiguration:
+        Status: Enabled
 
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -124,9 +139,11 @@ Resources:
                 - $(aws ecr get-login --no-include-email)
                 - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
                 - IMAGE_URI="${REPOSITORY_URI}:${TAG}"
+                - touch .env
             build:
               commands:
-                - docker build --tag "$IMAGE_URI" .
+                #- docker build --tag "$IMAGE_URI" .
+                - docker build --tag "$IMAGE_URI" -f docker/Dockerfile .
             post_build:
               commands:
                 - docker push "$IMAGE_URI"
@@ -152,20 +169,24 @@ Resources:
       ArtifactStore:
         Type: S3
         Location: !Ref ArtifactBucket
-      Stages:
+      Stages: # see https://docs.aws.amazon.com/codepipeline/latest/userguide/reference-pipeline-structure.html
         - Name: Source
           Actions:
             - Name: App
               ActionTypeId:
                 Category: Source
-                Owner: ThirdParty
+                # Owner: ThirdParty
+                Owner: AWS
                 Version: 1
-                Provider: GitHub
+                # Provider: GitHub
+                Provider: S3
               Configuration:
-                Owner: !Ref GitHubUser
-                Repo: !Ref GitHubRepo
-                Branch: !Ref GitHubBranch
-                OAuthToken: !Ref GitHubToken
+                # Owner: !Ref GitHubUser
+                # Repo: !Ref GitHubRepo
+                # Branch: !Ref GitHubBranch
+                # OAuthToken: !Ref GitHubToken
+                S3Bucket: !Ref ArtifactBucket
+                S3ObjectKey: !Ref ApplicationSourceZipName
               OutputArtifacts:
                 - Name: App
               RunOrder: 1
@@ -203,4 +224,6 @@ Resources:
 
 Outputs:
   PipelineUrl:
-    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}
+    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline} 
+  BucketForPipeline:
+    Value: !Ref ArtifactBucket
