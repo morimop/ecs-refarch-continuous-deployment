@@ -12,8 +12,18 @@
 - 各種yamlをS3に配置（CloudFormationを起動するためにS3に置く）
   - `ecs-refarch-continuous-deployments.yaml`および`templates`フォルダ配下
 - ソースコードZip内の構成は直下から`docker build -f ./docker/Dockerfile .`でビルドできる前提
-- コンテナポートは80を前提
-- LoadBalancerのヘルスチェックパスは`/`固定
+- TaskDefinitionのRev1（初期）としてContainerのImageを指定（nginxなり）
+  - ただし、コンテナポートは80を前提
+- LoadBalancerのヘルスチェックパスを入力
+
+## 一発起動URL
+```
+https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/create/review?stackName=<スタック名 一意になるよう適宜>&templateURL=https://s3-ap-northeast-1.amazonaws.com/<yaml配置したバケット名>/ecs-refarch-continuous-deployment.yaml&param_LaunchType=Fargate&param_TemplateBucket=<yaml配置したバケット名>&param_CertificateArn=<ACMの証明書ARN>&param_HealthCheckPath
+=<ELBヘルスチェックのパス %2F や %2Fhealth など>&param_InitialImage=<ECSに設定する初期のContainerImage>
+```
+- 東京region、fargate固定。yaml配置したバケットも東京regionの前提URL。
+- あとは「AWS CloudFormation によってカスタム名のついた IAM リソースが作成される場合があることを承認します。」にチェックを付けてLaunch!
+  - よってかなりの強権限で起動する必要あり
 
 ## 事後作業（自動化ToDo）
 - 作成されたALBのFQDNに読み替えるように、DNS(Route53なりDozensなり)へCNAMEレコードを設定
@@ -36,7 +46,7 @@
   - Resourceを2つ書いてうまくいかなかったので並べて書いた
 
 ## メモと参考
-- CodeBuildが出力する`images.json`がTaskDefinition(ContainerDefinition?)になる
+- CodeBuildが出力する`images.json`がTaskDefinitionのContainerDefinitionsになる
 - スタック作成直後のpipelineは失敗になる。SourceのZipがないから。(たぶん)
 - 以下はFork元のREADME
 

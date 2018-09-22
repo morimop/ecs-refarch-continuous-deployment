@@ -26,6 +26,8 @@ Parameters:
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
 
+  InitialImage:
+    Type: String
 
 Conditions:
   Fargate: !Equals [ !Ref LaunchType, "Fargate" ]
@@ -97,7 +99,7 @@ Resources:
       ExecutionRoleArn: !Ref TaskExecutionRole
       ContainerDefinitions:
         - Name: simple-app
-          Image: nginx
+          Image: !Ref InitialImage
           Essential: true
           Memory: 1024
           PortMappings:
@@ -108,6 +110,9 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-group: !Ref LogGroup
               awslogs-stream-prefix: !Ref AWS::StackName
+          Environment:
+            - Name: PORT
+              Value: 80
         # - Name: simple-app
         #   Image: amazon/amazon-ecs-sample
         #   EntryPoint:

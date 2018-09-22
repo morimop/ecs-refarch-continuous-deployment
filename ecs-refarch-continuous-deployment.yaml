@@ -54,6 +54,10 @@ Parameters:
     Description: >
       The ZIP file name, Application Source.
 
+  InitialImage:
+    Type: String
+    Description: >
+      Initial Container Image for ECS
   # ContainerPort:
   #   Type: Number
   #   Default: 3000
@@ -63,17 +67,22 @@ Parameters:
     Description: >
       ACM Certification ARN for HTTPS,ALB
 
+  HealthCheckPath:
+    Type: String
+    Description: >
+      HealthCheckPath of Container for ALB
+
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterLabels:
-      GitHubUser:
-        default: "User"
-      GitHubRepo:
-        default: "Repo"
-      GitHubBranch:
-        default: "Branch"
-      GitHubToken:
-        default: "Personal Access Token"
+      # GitHubUser:
+      #   default: "User"
+      # GitHubRepo:
+      #   default: "Repo"
+      # GitHubBranch:
+      #   default: "Branch"
+      # GitHubToken:
+      #   default: "Personal Access Token"
       LaunchType:
         default: "Launch Type"
     ParameterGroups:
@@ -96,14 +105,16 @@ Metadata:
           default: Stack Configuration
         Parameters:
           - TemplateBucket
-      # - Label:
-      #     default: Container Configuration
-      #   Parameters:
+      - Label:
+          default: Container Configuration
+        Parameters:
+          - InitialImage
       #     - ContainerPort
       - Label:
           default: ALB/HTTPS Configuration
         Parameters:
           - CertificateArn
+          - HealthCheckPath
 
 
 Resources:
@@ -139,7 +150,7 @@ Resources:
         Subnets: !GetAtt VPC.Outputs.Subnets
         VpcId: !GetAtt VPC.Outputs.VpcId
         CertificateArn: !Ref CertificateArn
-
+        HealthCheckPath: !Ref HealthCheckPath
 
   VPC:
     Type: AWS::CloudFormation::Stack
@@ -161,6 +172,7 @@ Resources:
         TargetGroup: !GetAtt LoadBalancer.Outputs.TargetGroup
         SourceSecurityGroup: !GetAtt LoadBalancer.Outputs.SecurityGroup
         Subnets: !GetAtt VPC.Outputs.Subnets
+        InitialImage: !Ref InitialImage
 
 
 Outputs:
