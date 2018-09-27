@@ -1,7 +1,9 @@
 # 改訂版
+
 - Githubではなく、S3にソースコードを置く（Gitリポジトリに依存しない。Gitlabでも使えるように）
 
 ## 事前準備
+
 - ALBはHTTPSにできるように事前にACMで証明書取得が必要
   - 無料でやるなら以下の手順
     1. freenomでドメインを取得
@@ -17,22 +19,27 @@
 - LoadBalancerのヘルスチェックパスを入力
 
 ## 一発起動URL
-```
-https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/create/review?stackName=<スタック名 一意になるよう適宜>&templateURL=https://s3-ap-northeast-1.amazonaws.com/<yaml配置したバケット名>/ecs-refarch-continuous-deployment.yaml&param_LaunchType=Fargate&param_TemplateBucket=<yaml配置したバケット名>&param_CertificateArn=<ACMの証明書ARN>&param_HealthCheckPath
+
+> https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/create/review?stackName=<スタック名 一意になるよう適宜>&templateURL=https://s3-ap-northeast-1.amazonaws.com/<yaml配置したバケット名>/ecs-refarch-continuous-deployment.yaml&param_LaunchType=Fargate&param_TemplateBucket=<yaml配置したバケット名>&param_CertificateArn=<ACMの証明書ARN>&param_HealthCheckPath
 =<ELBヘルスチェックのパス %2F や %2Fhealth など>&param_InitialImage=<ECSに設定する初期のContainerImage>
-```
+
 - 東京region、fargate固定。yaml配置したバケットも東京regionの前提URL。
 - あとは「AWS CloudFormation によってカスタム名のついた IAM リソースが作成される場合があることを承認します。」にチェックを付けてLaunch!
   - よってかなりの強権限で起動する必要あり
 
 ## 事後作業（自動化ToDo）
+
 - 作成されたALBのFQDNに読み替えるように、DNS(Route53なりDozensなり)へCNAMEレコードを設定
 - CFnで作成された`S3BucketForPipeline`にZIPで固めたソースコードをアップロード
+  - 手動でZipに固めるため、**Windows環境のgit**でclone/pull/checkoutしてきたソースは**改行コードに注意**
+  - `entrypoint.sh`などがCRLFだと動かないため。
+  - `git config --global core.autocrlf input`などとしておく。
 - Pipelineを手動（コンソール or CLI）なり自動なりで実行
   - S3にソースコードZipのPutをトリガにLambdaでpipelineを実行
     - 公式ドキュメントでは「CloudTrailでS3ログ有効化 -> CloudWatch Eventsで対象ZipファイルのPutをフィルタ、ルール作成」
 
 ## Fork元からの修正点
+
 - service.yamlで以下のエラーとなる
   - `Unable to assume the service linked role. Please verify that the ECS service linked role exists.`
   - 公式ドキュメントにそれらしい記述：https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/service_IAM_role.html
@@ -46,6 +53,7 @@ https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks
   - Resourceを2つ書いてうまくいかなかったので並べて書いた
 
 ## メモと参考
+
 - CodeBuildが出力する`images.json`がTaskDefinitionのContainerDefinitionsになる
 - スタック作成直後のpipelineは失敗になる。SourceのZipがないから。(たぶん)
 - 以下はFork元のREADME
